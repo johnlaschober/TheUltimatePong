@@ -1,13 +1,14 @@
 var express = require('express');
 var app = express();
 var serv = require('http').Server(app);
+var port = process.env.PORT || 1234;
 
 app.get('/', function(req,res){
     res.sendFile(__dirname + '/client/index.html');
 });
 app.use('/client', express.static(__dirname + '/client'));
 
-serv.listen(1234);
+serv.listen(port);
 console.log("Unnamed Has Started.");
 //------------------------------------------------------
 //Above is to grab the right webpage
