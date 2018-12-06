@@ -1,0 +1,69 @@
+<html>
+<title>Ultimate Pong</title>
+<canvas id="canvas" width="600px" height="400px" style="border: 1px solid #000000"></canvas>
+<script src='https://cdn.socket.io/socket.io-1.4.5.js'></script>
+<script>
+    var canvas = document.getElementById('canvas');
+    var ctx = document.getElementById('canvas').getContext('2d');
+    ctx.translate(canvas.width/2,canvas.height/2);
+    var socket = io();
+
+    socket.on('newPositions',function(data){
+        ctx.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height);
+        // console.log(data);
+        for(var i = 0; i < data.length-1; i++){
+            drawPaddle(data[i]);
+        }
+        drawBall(data[data.length-1]);
+    });
+
+    document.onkeydown = function(e){
+        if(e.keyCode === 68){ //d
+            socket.emit('keyPress',{inputId: 'right', state:true});
+        }else if(e.keyCode === 65){ //a
+            socket.emit('keyPress',{inputId: 'left', state:true});
+        }
+    }
+    document.onkeyup = function(e){
+        if(e.keyCode === 68){ //d
+            socket.emit('keyPress',{inputId: 'right', state:false});
+        }else if(e.keyCode === 65){ //a
+            socket.emit('keyPress',{inputId: 'left', state:false});
+        }
+    }
+
+    function lineToAngle(ctx, x1, y1, length, angle) {
+        angle *= Math.PI / 180;
+    
+        var x2 = x1 + length * Math.cos(angle),
+            y2 = y1 + length * Math.sin(angle);
+    
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+    
+        return {x: x2, y: y2};
+    }
+
+    function drawBall(ballInfo) 
+    {
+        ctx.beginPath();
+        ctx.arc(ballInfo.x, ballInfo.y, ballInfo.radius, 0, Math.PI*2);
+        ctx.fillStyle = "#0095DD";
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    function drawPaddle(paddleInfo)
+    {
+        ctx.beginPath();
+        ctx.fillStyle = paddleInfo.randomColor;
+        newX = Math.cos(paddleInfo.degrees * Math.PI / 180)*paddleInfo.currentOffset + paddleInfo.startingXPos;
+        newY = Math.sin(paddleInfo.degrees * Math.PI / 180)*paddleInfo.currentOffset + paddleInfo.startingYPos;
+        lineToAngle(ctx, newX, newY, paddleInfo.paddleWidth, paddleInfo.degrees); // problem child, check original
+        ctx.lineWidth = 10;
+        ctx.stroke();
+    }
+</script>
+<body>
+</body>
+</html>
