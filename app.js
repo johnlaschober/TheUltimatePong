@@ -16,9 +16,9 @@ console.log("Ultimate Pong Has Started.");
 var SOCKET_LIST = {};
 var PLAYER_LIST = {};
 
-var indexedPlayerArray = new Array();
-var outCoords = new Array();
-var reboundAnglesNeutral = new Array();
+var indexedPlayerArray = new Array(); // PLAYER_LIST converted to an array you can use 'i' with
+var outCoords = new Array(); // Array filled with arrays filled with 'out' box collision data
+var reboundAnglesNeutral = new Array(); // Array for bounce trajectories
 
 var canReflect = true;
 var canCheckOut = true;
@@ -27,14 +27,13 @@ var numPlayers = 0;
 var paddleWidth = 100/(numPlayers/2);
 
 var circleRadius = 100;
-var collisionPointAmount = 14;
-
-if (numPlayers == 2)
+var collisionPointAmount = 14; // How many 'out' collision points are along a paddle's path of movement
+if (numPlayers == 2) // Hotfix for 2 players
 {
     collisionPointAmount = 20;
 }
 
-var maxOffset, minOffset;
+var maxOffset, minOffset; // max and min amount a paddle can travel
 var lastPaddleContact, lastOutContact;
 
 var Player = function(id){
@@ -49,11 +48,13 @@ var Player = function(id){
         pressingRight: false,
         currentOffset: 0,
         degrees: 0,
+        score: 0,
         paddleWidth: 100/(numPlayers/2),
         collisionCoordinates: new Array()
     }
     
     self.updatePosition = function(){
+        // Controls that move paddle
         if(self.pressingLeft === true && self.currentOffset >= minOffset){
             self.currentOffset -= 1;
         }
@@ -61,6 +62,7 @@ var Player = function(id){
             self.currentOffset += 1;
         }
 
+        // Set the 6 collision boxes that perform checks against the ball later
         self.collisionCoordinates[0] = {x: self.currentXPos, y: self.currentYPos};
         for (j = 1; j < 6; j++)
         {
@@ -68,6 +70,7 @@ var Player = function(id){
             self.collisionCoordinates[j] = childCollisionCoords;
         }
 
+        // Set current X and Y position used elsewhere
         self.currentXPos = Math.cos(self.degrees * Math.PI / 180)*self.currentOffset + self.startingXPos;
         self.currentYPos = Math.sin(self.degrees * Math.PI / 180)*self.currentOffset + self.startingYPos;
     }
@@ -83,6 +86,7 @@ var Ball = function(){
         dy: -1
     }
     self.updatePosition = function(){
+        // Bounce off canvas boundaries
         if (Math.abs(self.x + self.dx) > 600-300)
         {
             self.dx = -self.dx;
@@ -92,41 +96,44 @@ var Ball = function(){
             self.dy = -self.dy;
         }
 
-        for (i = 0; i < indexedPlayerArray.length; i++)
+        for (i = 0; i < indexedPlayerArray.length; i++) // For all players
         {
             var currentPlayer = indexedPlayerArray[i];
-            for (j = 0; j < 6; j++)
+            for (j = 0; j < 6; j++) // Check all 6 collision boxes on a paddle
             {
-                if (canReflect)
+                if (canReflect) // Timer so we don't reflect repeatedly in a paddle
                 {
-                    if (ballCollidedWithPoint(currentPlayer.collisionCoordinates[j]))
+                    if (ballCollidedWithPoint(currentPlayer.collisionCoordinates[j])) // If ball collides with one of the paddle's collision points
                     {
                         lastPaddleContact = i;
                         setTimeout(function() {
-                            self.dx = reboundAnglesNeutral[lastPaddleContact].x;
+                            self.dx = reboundAnglesNeutral[lastPaddleContact].x; // Set rebound angles
                             self.dy = reboundAnglesNeutral[lastPaddleContact].y;
                             calcRandomAngles();
                             // console.log("Ball reflect off Player " + lastPaddleContact);
                         }, 20);
 
-                        reflectPause();
+                        reflectPause(); // Wait to reflect
                     }
                 }
             }
 
-            for (j = 0; j < collisionPointAmount; j++)
+            for (j = 0; j < collisionPointAmount; j++) // Check all 'out' collision boxes along paddle axis of movement
             {
-                if (canCheckOut)
+                if (canCheckOut) // Timer so we don't spam 'out' checking
                 {
-                    if (ballCollidedWithPoint(outCoords[i][j]))
+                    if (ballCollidedWithPoint(outCoords[i][j])) // If we collide with an 'out' box
                     {
+                        // Store changes in X and Y
                         var ballOutDx = self.dx;
                         var ballOutDy = self.dy;
-                        lastOutContact = i;
-                        setTimeout(function() {
-                            if (ballOutDx == self.dx && ballOutDy == self.dy)
+                        lastOutContact = i; // Set last paddle contacted
+                        setTimeout(function() { 
+                            if (ballOutDx == self.dx && ballOutDy == self.dy) // If the change in X and change in Y does not change within 250 milliseconds
                             {
                                 console.log("Player " + lastOutContact + " lost!");
+                                updateScore(lastPaddleContact);
+                                resetGame();
                             }
                         }, 250);
                         outPause();
@@ -135,6 +142,7 @@ var Ball = function(){
             }
         }
 
+        // Set ball info used for collisions
         ballBottomLeftCoords[0] = self.x - self.radius;
         ballBottomLeftCoords[1] = self.y - self.radius;
         ballBottomRightCoords[0] = self.x - self.radius + ballDist;
@@ -144,11 +152,13 @@ var Ball = function(){
         ballTopRightCoords[0] = self.x - self.radius + ballDist;
         ballTopRightCoords[1] = self.y - self.radius + ballDist;
 
-        self.x += self.dx;
-        self.y += self.dy;
+        self.x += self.dx; // Update ball X every frame by moving it by the change in X
+        self.y += self.dy; // Update b8all Y every frame by moving it by the change in Y
     }
     return self;
 }
+
+// Ball info used for checking collisions
 var ballBottomLeftCoords = new Array();
 var ballBottomRightCoords = new Array();
 var ballTopLeftCoords = new Array();
@@ -156,26 +166,30 @@ var ballTopRightCoords = new Array();
 var ballDist = 15;
 
 
-var ball = Ball();
+var ball = Ball(); // Instantiate a single ball
 
 var io = require('socket.io')(serv, {});
+// On Connect
 io.sockets.on('connection', function(socket){
     socket.id = Math.random();
     SOCKET_LIST[socket.id] = socket;
-    ball = new Ball();
+    ball = new Ball(); // Create one single ball
 
-    numPlayers++;
-    var player = Player(socket.id);
+    numPlayers++; // Account for number of players
+    var player = Player(socket.id); // Create players tied to sockets
     PLAYER_LIST[socket.id] = player;
-    resetPlayers();
+    resetPlayers(); // Reset all player related info
 
+    // On Disconnect
     socket.on('disconnect', function(){
-        numPlayers--;
+        numPlayers--; // Remove player number
         delete SOCKET_LIST[socket.id];
         delete PLAYER_LIST[socket.id];
         resetPlayers();
 
     });
+
+    // Server side controls
     socket.on('keyPress', function(data){
         if(data.inputId === 'left'){
             player.pressingLeft = data.state;
@@ -185,7 +199,9 @@ io.sockets.on('connection', function(socket){
     });
 });
 
+// Update loop
 setInterval(function(){
+    // Send info to the client under 'newPositions' call
     var pack = [];
     for(var i in PLAYER_LIST){
         var player = PLAYER_LIST[i];
@@ -212,12 +228,14 @@ setInterval(function(){
     }
 }, 10);
 
+// Set the maximum and minimum any paddle can travel
 function setOffsets()
 {
     maxOffset = 360/Math.pow(numPlayers, 1.2);
     minOffset = -maxOffset - (paddleWidth/1.6);
 }
 
+// Set the rotation a paddle with be spawned in at
 function setPlayerDegrees()
 {
     for (i = 0; i < numPlayers; i++)
@@ -227,6 +245,7 @@ function setPlayerDegrees()
     }
 }
 
+// Set X and Y starting positions for all paddles
 function setStartingPositions()
 {
     for (i = 0; i < numPlayers; i++)
@@ -237,6 +256,7 @@ function setStartingPositions()
     }
 }
 
+// Turn PLAYER_LIST into an array you can grab with index i when looping through all players
 function formIndexedPlayerArray()
 {
     indexedPlayerArray = new Array();
@@ -267,6 +287,7 @@ function resetPlayers()
     setOffsets();
 }
 
+// Create a line of "out boxes" when player number changes
 function updateOutCoords()
 {
     for (i=0; i < numPlayers; i++)
@@ -292,6 +313,7 @@ function updateOutCoords()
     }
 }
 
+// Timer so ball waits to reflect and doesn't get stuck
 function reflectPause()
 {
     canReflect = false;
@@ -300,6 +322,7 @@ function reflectPause()
     }, 250);
 }
 
+// Slight pause to see if a player has lost by missing the ball
 function outPause()
 {
     canCheckOut = false;
@@ -308,6 +331,7 @@ function outPause()
     }, 250);
 }
 
+// boolean if ball collided with collision box
 function ballCollidedWithPoint(point)
 {
     if (ballBottomLeftCoords[0] < point.x && point.x < ballBottomRightCoords[0])
@@ -320,6 +344,7 @@ function ballCollidedWithPoint(point)
     return false;
 }
 
+// Get collision x and y coordinates
 function collisionPointHelper(x1, y1, length, angle) {
     angle *= Math.PI / 180;
 
@@ -333,44 +358,85 @@ function getRandom(min, max) {
     return Math.random();
 }
 
+// Create "random" bounce angles for when ball hits paddle
 function calcRandomAngles()
+{
+    for (i = 0; i < numPlayers; i++)
     {
-        for (i = 0; i < numPlayers; i++)
+        var reboundAngle;
+        var degrees = indexedPlayerArray[i].degrees-90;
+        if (degrees >= 0 && degrees < 45)
         {
-            var reboundAngle;
-            var degrees = indexedPlayerArray[i].degrees-90;
-            if (degrees >= 0 && degrees < 45)
-            {
-                reboundAngle = {x: -1, y: -getRandom(0,1)};
-            }
-            if (degrees >= 45 && degrees < 90)
-            {
-                reboundAngle = {x: -getRandom(0,1), y: -1};
-            }
-            if (degrees >= 90 && degrees < 135)
-            {
-                reboundAngle = {x: -getRandom(0,1), y: -1};
-            }
-            if (degrees >= 135 && degrees < 180)
-            {
-                reboundAngle = {x: getRandom(0,1), y: -1};
-            }
-            if (degrees >= 180 && degrees < 225)
-            {
-                reboundAngle = {x: 1, y: getRandom(0,1)};
-            }
-            if (degrees >= 225 && degrees < 270)
-            {
-                reboundAngle = {x: getRandom(0,1), y: 1};
-            }
-            if (degrees >= 270 && degrees < 315)
-            {
-                reboundAngle = {x: getRandom(0,1), y: 1};
-            }
-            if (degrees >= 315)
-            {
-                reboundAngle = {x: -getRandom(0,1), y: 1};
-            }
-            reboundAnglesNeutral[i] = reboundAngle;
+            reboundAngle = {x: -1, y: -getRandom(0,1)};
+        }
+        if (degrees >= 45 && degrees < 90)
+        {
+            reboundAngle = {x: -getRandom(0,1), y: -1};
+        }
+        if (degrees >= 90 && degrees < 135)
+        {
+            reboundAngle = {x: -getRandom(0,1), y: -1};
+        }
+        if (degrees >= 135 && degrees < 180)
+        {
+            reboundAngle = {x: getRandom(0,1), y: -1};
+        }
+        if (degrees >= 180 && degrees < 225)
+        {
+            reboundAngle = {x: 1, y: getRandom(0,1)};
+        }
+        if (degrees >= 225 && degrees < 270)
+        {
+            reboundAngle = {x: getRandom(0,1), y: 1};
+        }
+        if (degrees >= 270 && degrees < 315)
+        {
+            reboundAngle = {x: getRandom(0,1), y: 1};
+        }
+        if (degrees >= 315)
+        {
+            reboundAngle = {x: -getRandom(0,1), y: 1};
+        }
+        reboundAnglesNeutral[i] = reboundAngle;
+    }
+}
+
+// Update the score
+function updateScore(playerID)
+{
+    if (playerID)
+    {
+        var player = indexedPlayerArray[playerID];
+        player.score++;
+
+        // Send score packet
+        var pack = [];
+        for(var i in PLAYER_LIST){
+            var player = PLAYER_LIST[i];
+            pack.push({
+                score: player.score
+            });
+        }
+        
+        for(var i in SOCKET_LIST){
+            var socket = SOCKET_LIST[i];
+            socket.emit('scoresUpdated',pack);
         }
     }
+}
+
+function resetGame()
+{
+    setTimeout(function() {
+        ball.dx = 1
+        ball.dy = getRandom(-1,1);
+        ball.x = 0;
+        ball.y = 0;
+
+        for (i = 0; i < numPlayers; i++)
+        {
+            var player = indexedPlayerArray[i];
+            player.currentOffset = 0;
+        }
+    }, 1000);
+}

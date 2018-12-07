@@ -8,6 +8,7 @@
     ctx.translate(canvas.width/2,canvas.height/2);
     var socket = io();
 
+    // New position data is sent
     socket.on('newPositions',function(data){
         ctx.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height);
         // console.log(data);
@@ -17,6 +18,18 @@
         drawBall(data[data.length-1]);
     });
 
+    // Score data is sent
+    socket.on('scoresUpdated',function(data){
+        document.getElementById("scoreContainer").innerHTML = "<h1>Scores</h1><br>";
+        for (var i = 0; i < data.length; i++)
+        {
+            console.log(data[i].score);
+            var html = '<h3>Player '+(i+1)+': '+data[i].score+'</h3><br>';
+            document.getElementById("scoreContainer").innerHTML += html;
+        }
+    });
+
+    // Controls
     document.onkeydown = function(e){
         if(e.keyCode === 68){ //d
             socket.emit('keyPress',{inputId: 'right', state:true});
@@ -32,6 +45,7 @@
         }
     }
 
+    // Helps render paddles
     function lineToAngle(ctx, x1, y1, length, angle) {
         angle *= Math.PI / 180;
     
@@ -44,6 +58,7 @@
         return {x: x2, y: y2};
     }
 
+    // Renders ball
     function drawBall(ballInfo) 
     {
         ctx.beginPath();
@@ -53,6 +68,7 @@
         ctx.closePath();
     }
 
+    // Renders paddles
     function drawPaddle(paddleInfo)
     {
         ctx.beginPath();
@@ -65,5 +81,9 @@
     }
 </script>
 <body>
+    <br>
+    <div id="scoreContainer">
+        <h1>Scores</h1><br>
+    </div>
 </body>
 </html>
