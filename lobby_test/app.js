@@ -14,7 +14,8 @@ console.log("Lobby Test Has Started.");
 //------------------------------------------------------
 var SOCKET_LIST = {};
 var PLAYER_LIST = {};
-var lobbyOnePlayers = 0;
+var lobbyOnePlayers = 0; //Amount of Players in Lobby One
+var lobbyOneHostList = [];
 
 var Player = function(id){
     var self = {
@@ -27,7 +28,7 @@ var Player = function(id){
         pressingRight: false,
         pressingDown: false,
         maxSpd: 10,
-        lobby: 0,
+        lobbyNum: 0,
         host: false,
     }
     self.updatePosition = function(){
@@ -58,13 +59,20 @@ io.sockets.on('connection', function(socket){
     var player = Player(socket.id);
     PLAYER_LIST[socket.id] = player;
     socket.on('disconnect', function(){
-        if(player.lobby === 1){
+        if(player.lobbyNum === 1){
             lobbyOnePlayers -= 1;
-            console.log("This is working.");
+        }
+        if(lobbyOneHostList.indexOf(PLAYER_LIST[socket.id].id) > -1){
+            lobbyOneHostList.splice(lobbyOneHostList.indexOf(PLAYER_LIST[socket.id].id), 1);
         }
         delete SOCKET_LIST[socket.id];
         delete PLAYER_LIST[socket.id];
+        if(lobbyOneHostList.length > 0){
+            PLAYER_LIST[lobbyOneHostList[0]].host = true;
+        }
     });
+    socket.emit('init',{id: socket.id});
+
     socket.on('keyPress', function(data){
         if(data.inputId === 'left'){
             player.pressingLeft = data.state;
@@ -76,14 +84,24 @@ io.sockets.on('connection', function(socket){
             player.pressingDown = data.state;
         }
     });
-    socket.emit('updateLobbyOne',{players: lobbyOnePlayers});
+    socket.emit('updateLobbyOne',{players: lobbyOnePlayers, host: player.host});
     socket.on('joinLobbyOne',function(){
         console.log("Joined Lobby One");
-        if(player.lobby != 1 && lobbyOnePlayers < 8){
-            player.lobby = 1;
+        lobbyOneHostList.push(player.id);
+        if(player.lobbyNum != 1 && lobbyOnePlayers < 8){
+            player.lobbyNum = 1;
             lobbyOnePlayers += 1;
-            if(lobbyOnePlayers === 1){
+            if(lobbyOneHostList[0] === player.id){
                 player.host = true;
+            }
+        }
+    });
+    //This is where Game Will Be initialized
+    socket.on('startGame', function(){
+        if(lobbyOnePlayers >= 2){
+            for(var i in SOCKET_LIST){
+                var socket = SOCKET_LIST[i];
+                socket.emit('showCanvas');
             }
         }
     });
@@ -91,18 +109,27 @@ io.sockets.on('connection', function(socket){
 
 setInterval(function(){
     var pack = [];
+    var hostpack = [];
     for(var i in PLAYER_LIST){
         var player = PLAYER_LIST[i];
-        player.updatePosition();
+        player.updatePosition(); //Updates The positions on file in app.js
         pack.push({
             x: player.x,
             y: player.y,
             randomColor: player.randomColor,
         });
+        hostpack.push({
+            myid: player.id,
+            host: player.host,
+        });
     }
     for(var i in SOCKET_LIST){
         var socket = SOCKET_LIST[i];
-        socket.emit('newPositions',pack);
-        socket.emit('updateLobbyOne',{players: lobbyOnePlayers, host: player.host});
+        socket.emit('newPositions',pack); //Sends to Client to draw the new positions
+        socket.emit('updateLobbyOne',{players: lobbyOnePlayers});
+        socket.emit('startButton', hostpack);
     }
+    
+
 }, 1000/50);
+

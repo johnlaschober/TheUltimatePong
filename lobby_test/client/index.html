@@ -1,12 +1,15 @@
 <html>
 <title>Lobby Testing Environment</title>
-<canvas id="CANVAS" width="500px" height="300px" style="border: 1px solid #000000"></canvas>
+<canvas id="CANVAS" width="500px" height="300px" style="border: 1px solid #000000;display:none;"></canvas>
 <script src='https://cdn.socket.io/socket.io-1.4.5.js'></script>
 <script>
     var ctx = document.getElementById('CANVAS').getContext('2d');
     var socket = io();
     var host = false;
-    
+    var myid = 0;
+    socket.on('init', function(data){
+        myid = data.id;
+    });
 
     socket.on('newPositions',function(data){
         ctx.clearRect(0,0,500,500);
@@ -46,18 +49,44 @@
 
     socket.on('updateLobbyOne', function(data){
         document.getElementById('lobbyOne').innerHTML = "GAME 1 | JOIN "+data.players+"/8 Players";
+        /*    
         if(data.host === true){
             document.getElementById('startGameLobbyOne').style.display = "";
+        }else{
+            document.getElementById('startGameLobbyOne').style.display = "none";
         }
+        */
+    });
+    socket.on('startButton', function(data){
+        for(var i = 0; i < data.length; i+=1){
+            if(myid == data[i].myid){
+                if(data[i].host === true){
+                    document.getElementById('startGameLobbyOne').style.display = "";
+                }else{
+                    document.getElementById('startGameLobbyOne').style.display = "none"; 
+                }
+            }
+        }
+    });
+
+    //This is Start Game Function For Client
+    var startGame = function(){
+        socket.emit('startGame',{});
+    }
+    socket.on('showCanvas', function(){
+        document.getElementById('CANVAS').style.display = "";
+        document.getElementById('lobbyButtons').style.display = "none";
     });
 
 </script>
 <body>
     <br>
-    <button id='lobbyOne' onclick='joinLobbyOne()' style='background-color:green;color:white;'>GAME 1 | JOIN 0/8 Players</button>
-    <button id='startGameLobbyOne' style='background-color:green;color:white;display:none;'>Start Game</button><br>
-    <button style='background-color:RED;color:white;'>GAME 2 | OFFLINE</button><br>
-    <button style='background-color:RED;color:white;'>GAME 3 | OFFLINE</button><br>
-    <button style='background-color:RED;color:white;'>GAME 4 | OFFLINE</button><br>
+    <div id='lobbyButtons'>
+        <button id='lobbyOne' onclick='joinLobbyOne()' style='background-color:green;color:white;'>GAME 1 | JOIN 0/8 Players</button>
+        <button id='startGameLobbyOne'onclick='startGame()' style='background-color:green;color:white;display:none;'>Start Game</button><br>
+        <button style='background-color:RED;color:white;'>GAME 2 | OFFLINE</button><br>
+        <button style='background-color:RED;color:white;'>GAME 3 | OFFLINE</button><br>
+        <button style='background-color:RED;color:white;'>GAME 4 | OFFLINE</button><br>
+    </div>
 </body>
 </html>
