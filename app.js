@@ -1,3 +1,8 @@
+// Authors: John Laschober and Gabe Rivera
+// Course Name: Web and Distributed Programming
+// Project: Final
+// Semester: Fall 2018
+
 var express = require('express');
 var app = express();
 var serv = require('http').Server(app);
