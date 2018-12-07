@@ -55,7 +55,8 @@ var ball = {
     y: 155,
     width: 10, //Width of Ball
     height: 10, //Height of Ball
-    speed: 0, //This does not update until the game has started. Then speed is updated
+    dx: 0, //This does not update until the game has started. Then speed is updated
+    dy: 0
 }
 
 var io = require('socket.io')(serv, {});
@@ -126,7 +127,8 @@ io.sockets.on('connection', function(socket){
                 }
                 ball.x = 235; //Putting ball in center
                 ball.y = 155; //Putting ball in center
-                ball.speed = 4; //Ball speed
+                ball.dx = 2; //Ball speed
+                ball.dy = 2;
             }else if(lobbyOnePlayers == 3){//If 3 players in game
 
             }else if(lobbyOnePlayers == 4){// If 4 players in game
@@ -145,7 +147,17 @@ var testCollisionRectRect = function(rectA,rectB){  //Checks For Collision Betwe
 setInterval(function(){
     var pack = [];
     var hostpack = [];
-    ball.x += ball.speed;
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+    // if (ball.x + ball.dx > 480-10 || ball.x + ball.dx < 0)
+    // {
+    //     ball.dx = -ball.dx;
+    // }
+    if (ball.y + ball.dy > 320-10 || ball.y + ball.dy < 0)
+    {
+        ball.dy = -ball.dy;
+    }
+
     for(var i in PLAYER_LIST){
         var player = PLAYER_LIST[i];
         player.updatePosition(); //Updates The positions on file in app.js
@@ -168,15 +180,25 @@ setInterval(function(){
         if(PLAYER_LIST[ii].id == lobbyOneHostList[0]){
             if(testCollisionRectRect(ball, PLAYER_LIST[ii])){ //checks left paddle collision
                 collided = true;
+                ball.x = 20;
             }
         }else if(PLAYER_LIST[ii].id == lobbyOneHostList[1]){
             if(testCollisionRectRect(ball, PLAYER_LIST[ii])){ //checks right paddle collision
                 collided = true;
+                ball.x = 450;
             }
         }
     }
     if(collided === true){ //Changes the ball from going left to right and vice versa
-        ball.speed = -ball.speed; 
+        if (ball.dx < 0)
+        {
+            ball.dx = Math.abs(ball.dx) + 1;
+        }
+        else
+        {
+            ball.dx = -ball.dx - 1;
+        }
+        ball.dy = ball.dy; 
     }
     for(var i in SOCKET_LIST){
         var socket = SOCKET_LIST[i];
