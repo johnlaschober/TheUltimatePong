@@ -1,43 +1,73 @@
 <html>
 <title>Lobby Testing Environment</title>
-<canvas id="CANVAS" width="500px" height="300px" style="border: 1px solid #000000;display:none;"></canvas>
+<canvas id="CANVAS" width="480px" height="320px" style="border: 1px solid #000000;display:none;"></canvas>
 <script src='https://cdn.socket.io/socket.io-1.4.5.js'></script>
 <script>
     var ctx = document.getElementById('CANVAS').getContext('2d');
     var socket = io();
     var host = false;
     var myid = 0;
+    var gameended = false;
     socket.on('init', function(data){
         myid = data.id;
     });
 
     socket.on('newPositions',function(data){
-        ctx.clearRect(0,0,500,500);
-        for(var i = 0; i < data.length; i+=1){
-            ctx.fillStyle = data[i].randomColor;
-            ctx.fillRect(data[i].x,data[i].y,20,30);
+        if(gameended === false){
+            ctx.clearRect(0,0,480,320);
+            for(var i = 0; i < data.length; i+=1){
+                if(data[i].lobbyNum == 1){
+                    if(data[i].id == myid){
+                    ctx.fillStyle = '#070bff';
+                }else{
+                    ctx.fillStyle = '#000000';
+                }
+                //ctx.fillStyle = data[i].randomColor;
+                ctx.fillRect(data[i].x,data[i].y,data[i].width,data[i].height);
+                }
+            }
+            //all ball data is the same so doesnt matter what person I grabbed it from.
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(data[0].ball.x,data[0].ball.y,data[0].ball.width,data[0].ball.height);
+        }
+    });
+
+    socket.on('youLost', function(data){
+        if(data.id == myid && gameended === false){
+            ctx.font = "40px Arial";
+            ctx.fillStyle = "red";
+            ctx.fillText("YOU LOST!",130,170);
+            ctx.fillStyle = "#000000";
+            ctx.font = "20px Arial";
+            ctx.fillText('Click "Enter" To Return To Lobby',100,200);
+            gameended = true;
+        }
+    });
+    socket.on('youWon', function(data){
+        if(data.id == myid && gameended === false){
+            ctx.font = "40px Arial";
+            ctx.fillStyle = "green";
+            ctx.fillText("YOU WON!",130,170);
+            ctx.fillStyle = "#000000";
+            ctx.font = "20px Arial";
+            ctx.fillText('Click "Enter" To Return To Lobby',100,200);
+            gameended = true;
         }
     });
 
     document.onkeydown = function(e){
         if(e.keyCode === 68){ //d
-            socket.emit('keyPress',{inputId: 'right', state:true});
-        }else if(e.keyCode === 83){ //s
             socket.emit('keyPress',{inputId: 'down', state:true});
         }else if(e.keyCode === 65){ //a
-            socket.emit('keyPress',{inputId: 'left', state:true});
-        }else if(e.keyCode === 87){ //w
             socket.emit('keyPress',{inputId: 'up', state:true});
+        }else if(e.keyCode === 13){
+            location.reload();
         }
     }
     document.onkeyup = function(e){
         if(e.keyCode === 68){ //d
-            socket.emit('keyPress',{inputId: 'right', state:false});
-        }else if(e.keyCode === 83){ //s
             socket.emit('keyPress',{inputId: 'down', state:false});
         }else if(e.keyCode === 65){ //a
-            socket.emit('keyPress',{inputId: 'left', state:false});
-        }else if(e.keyCode === 87){ //w
             socket.emit('keyPress',{inputId: 'up', state:false});
         }
     }
@@ -47,15 +77,9 @@
         console.log("something is working?");
     }
 
+
     socket.on('updateLobbyOne', function(data){
         document.getElementById('lobbyOne').innerHTML = "GAME 1 | JOIN "+data.players+"/8 Players";
-        /*    
-        if(data.host === true){
-            document.getElementById('startGameLobbyOne').style.display = "";
-        }else{
-            document.getElementById('startGameLobbyOne').style.display = "none";
-        }
-        */
     });
     socket.on('startButton', function(data){
         for(var i = 0; i < data.length; i+=1){
@@ -74,6 +98,7 @@
         socket.emit('startGame',{});
     }
     socket.on('showCanvas', function(){
+        gameended = false;
         document.getElementById('CANVAS').style.display = "";
         document.getElementById('lobbyButtons').style.display = "none";
     });
